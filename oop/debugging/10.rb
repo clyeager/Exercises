@@ -62,7 +62,8 @@ puts DoesItRock.find_out('Bug hunting') # Bug hunting rocks!
 
 
 #corrected code
-class AuthenticationError < Exception; end
+
+class AuthenticationError < StandardError; end
 
 # A mock search engine
 # that returns a random number instead of an actual count.
