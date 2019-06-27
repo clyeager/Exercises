@@ -1,34 +1,25 @@
-#create a class for the following usage:
+#create a class for the following usage
 
 class FixedArray
-  attr_reader :array
-
   def initialize(n)
-    @array = Array.new(n)
+    @array = [nil] * n
   end
 
   def [](idx)
-    if idx > (array.size - 1)
-      raise IndexError
-    else
-      array[idx]
-    end
+    @array.fetch(idx)
   end
 
-  def []=(idx, el)
-    if idx > (array.size - 1)
-      raise IndexError
-    else
-      array[idx] = el
-    end
+  def []=(idx, obj)
+    self[idx]
+    @array[idx] = obj
   end
 
   def to_a
-    array.dup
+    @array.clone
   end
 
   def to_s
-    array.dup.to_s
+    to_a.to_s
   end
 end
 

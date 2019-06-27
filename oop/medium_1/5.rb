@@ -12,9 +12,11 @@ class Minilang
   end
 
   def eval
-    @commands.split.each { |command| process_command(command) }
+    begin
+      @commands.split.each { |command| process_command(command) }
     rescue EmptyStackError, CommandError => e
       puts e.message
+    end
   end
 
   def process_command(command)
