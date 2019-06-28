@@ -1,4 +1,3 @@
-require 'pry'
 class Card
   attr_reader :rank, :suit, :numerical_rank
 
