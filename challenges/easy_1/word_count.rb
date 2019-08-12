@@ -1,11 +1,14 @@
 class Phrase
   def initialize(phrase)
-    @phrase = phrase
+    @phrase = phrase.downcase
   end
 
   def word_count
     count = Hash.new(0)
-    @phrase.downcase.gsub(/[^a-zA-Z0-9\s'\s]/, ' ').split.each do |word|
+    @phrase.gsub!(/[^a-zA-Z0-9']/, ' ')
+    @phrase.gsub!(/(\B'\b|\b'\B)/, ' ') if @phrase.match(/(\B'\b|\b'\B)/)
+
+    @phrase.split.each do |word| 
       count[word] += 1
     end
     count
