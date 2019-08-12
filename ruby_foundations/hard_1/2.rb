@@ -59,7 +59,7 @@ block_method_2('turtle') do |turtle, seal|
 end
 block_method_2('turtle') { puts "This is a #{animal}."}
 
-#These examples show that block have lenient arity rules. When passing in an animal
+#These examples show that blocks have lenient arity rules. When passing in an animal
 # string via local variable animal, the block works as expected. If we set up our
 # block to take two arguments and only pass one argument, nil is filled as the
 # value of our other argument, and interpolation causes an empty space in our output.
@@ -74,4 +74,3 @@ block_method_2('turtle') { puts "This is a #{animal}."}
 # want less flexibility, we want lambdas. Another important thing to note, is that
 #regardless of the type of block a method uses, method rules still apply within
 # the method itself, and therefore if we yield to a block, we must pass a block.
-
