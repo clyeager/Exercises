@@ -1,0 +1,21 @@
+1.(DDL) Data Definition Language Constructs-ALTER TABLE, ALTER COLUMN, ADD COLUMN, DROP TABLE\
+(DML) Data Manipulation Language Constructs-DELETE FROM, UPDATE, INSERT INTO, SELECT
+
+2.DML
+
+3.DDL
+
+4.DDL
+
+5.DML
+
+6.DML
+
+7.Neither, since \d is a psql command
+
+8.DML
+
+9.DDL
+
+10.DDL
+

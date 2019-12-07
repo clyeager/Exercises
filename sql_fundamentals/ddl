@@ -1,0 +1,75 @@
+1.
+createdb extrasolar
+psql -d extrasolar
+
+CREATE TABLE stars (
+  id serial PRIMARY KEY,
+  name varchar(25) UNIQUE NOT NULL,
+  distance INT NOT NULL CHECK (distance > 0),
+  spectral_type char(1),
+  companions INT NOT NULL CHECK (companions >= 0)
+);
+
+CREATE TABLE planets (
+  id serial PRIMARY KEY,
+  designation char(1),
+  mass INT
+);
+
+2.
+ALTER TABLE planets
+ADD COLUMN star_id INT NOT NULL;
+
+ALTER TABLE planets ADD FOREIGN KEY (star_id) REFERENCES stars(id);
+
+Further Exploration: The changes to the length are acceptable in this case because the data is
+ within 25 characters. If it was not, we would get an error.
+
+3.
+ALTER TABLE stars ALTER COLUMN distance TYPE numeric;
+
+Further Exploration: No error will be thrown because an integer value does not violate the
+ numeric datatype, as both integers and decimal numbers are acceptable.
+
+4.
+ALTER TABLE stars
+ALTER COLUMN spectral_type SET NOT NULL;
+
+ALTER TABLE stars
+ADD CHECK (spectral_type IN ('O', 'B', 'A', 'F', 'G', 'K', 'M'));
+
+Further Exploration: An error would occur due to the violation of the NOT NULL constraint.
+We could change to change the data to add the constraint.
+
+5.
+ALTER TABLE stars DROP CONSTRAINT stars_spectral_type_check;
+CREATE TYPE spectral_type_choices AS ENUM ('O', 'B', 'A', 'F', 'G', 'K', 'M');
+ALTER TABLE stars ALTER COLUMN spectral_type TYPE spectral_type_choices
+USING spectral_type::spectral_type_choices;
+
+6.
+ALTER TABLE planets
+ALTER COLUMN mass TYPE numeric,
+ALTER COLUMN mass SET NOT NULL,
+ADD CHECK (mass >= 0),
+ALTER COLUMN designation SET NOT NULL;
+
+7.
+ALTER TABLE planets
+ADD COLUMN semi_major_axis numeric NOT NULL;
+
+Further Exploration: If you tried to add this column when there were already rows of data, 
+you would get an error due to the NOT NULL constraint. You would need to take the constraint off
+ until you added values to that column for all rows, and then add the constraint.
+
+8.
+CREATE TABLE moons (
+    id serial PRIMARY KEY,
+    designation INT NOT NULL CHECK (designation > 0),
+    semi_major_axis numeric CHECK (semi_major_axis > 0.0),
+    mass numeric CHECK (mass > 0.0),
+    planets_id INT NOT NULL REFERENCES planets (id)
+);
+
+9.\c lesson_3
+DROP DATABASE extrasolar;

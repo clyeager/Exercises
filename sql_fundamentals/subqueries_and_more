@@ -1,0 +1,192 @@
+1.
+CREATE DATABASE auction;
+
+CREATE TABLE bidders (
+  id serial PRIMARY KEY,
+  name text NOT NULL
+);
+
+CREATE TABLE items (
+  id serial PRIMARY KEY,
+  name text NOT NULL,
+  initial_price numeric(6, 2) NOT NULL CHECK(initial_price BETWEEN 0.01 AND 1000.00),
+  sales_price numeric(6, 2) CHECK(sales_price BETWEEN 0.01 AND 1000.00)
+);
+
+CREATE TABLE bids (
+  id serial PRIMARY KEY,
+  bidder_id INT NOT NULL REFERENCES bidders(id) ON DELETE CASCADE,
+  item_id INT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  amount numeric(6, 2) NOT NULL CHECK(amount BETWEEN 0.01 AND 1000.00)
+);
+
+CREATE INDEX ON bids (bidder_id, item_id);
+
+\copy bidders FROM 'bidders.csv' WITH HEADER CSV;
+\copy items FROM 'items.csv' WITH HEADER CSV;
+\copy bids FROM 'bids.csv' WITH HEADER CSV;
+
+2.
+SELECT items.name AS "Bid on Items" FROM items WHERE id IN
+  (SELECT DISTINCT item_id FROM bids);
+
+3.
+SELECT items.name AS "Not Bid On" FROM items WHERE id NOT IN
+  (SELECT item_id FROM bids);
+
+4.
+SELECT name FROM bidders WHERE EXISTS
+  (SELECT 1 FROM bids WHERE bids.bidder_id = bidders.id);
+
+Further Exploration:
+SELECT DISTINCT name FROM bidders
+INNER JOIN bids ON bidders.id = bids.bidder_id;
+
+5.
+SELECT max(bid_counts.count) FROM
+  (SELECT count(bids.id) FROM bids
+    INNER JOIN bidders ON bids.bidder_id = bidders.id
+    GROUP BY name) AS bid_counts;
+
+6.
+SELECT name,
+  (SELECT COUNT(item_id) FROM bids WHERE item_id = items.id)
+FROM items;
+
+Further Exploration:
+SELECT items.name, count(bids.item_id) FROM items
+LEFT OUTER JOIN bids ON items.id = bids.item_id
+GROUP BY items.id
+ORDER BY items.id;
+
+7.
+SELECT id FROM items
+WHERE ROW('Painting', 100.00, 250.00) =
+  ROW(name, initial_price, sales_price);
+
+8.
+Statement:
+EXPLAIN SELECT name FROM bidders
+WHERE EXISTS (SELECT 1 FROM bids WHERE bids.bidder_id = bidders.id);
+
+Output:
+                                QUERY PLAN                                
+--------------------------------------------------------------------------
+ Hash Join  (cost=33.38..66.47 rows=635 width=32)
+   Hash Cond: (bidders.id = bids.bidder_id)
+   ->  Seq Scan on bidders  (cost=0.00..22.70 rows=1270 width=36)
+   ->  Hash  (cost=30.88..30.88 rows=200 width=4)
+         ->  HashAggregate  (cost=28.88..30.88 rows=200 width=4)
+               Group Key: bids.bidder_id
+               ->  Seq Scan on bids  (cost=0.00..25.10 rows=1510 width=4)
+(7 rows)
+
+Explanation:
+Here we see the query plan for the statement, which is a step by step analysis of how the query will be run iternally. We can see each node on the node tree which gives an estimate on the cost for each node and the number of rows that will be output by the node. This does not actually run the statement.
+
+Statement:
+EXPLAIN ANALYZE SELECT name FROM bidders
+WHERE EXISTS (SELECT 1 FROM bids WHERE bids.bidder_id = bidders.id);
+
+Output:
+                                                     QUERY PLAN                                                      
+---------------------------------------------------------------------------------------------------------------------
+ Hash Join  (cost=33.38..66.47 rows=635 width=32) (actual time=0.156..0.159 rows=6 loops=1)
+   Hash Cond: (bidders.id = bids.bidder_id)
+   ->  Seq Scan on bidders  (cost=0.00..22.70 rows=1270 width=36) (actual time=0.042..0.043 rows=7 loops=1)
+   ->  Hash  (cost=30.88..30.88 rows=200 width=4) (actual time=0.074..0.074 rows=6 loops=1)
+         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+         ->  HashAggregate  (cost=28.88..30.88 rows=200 width=4) (actual time=0.055..0.057 rows=6 loops=1)
+               Group Key: bids.bidder_id
+               ->  Seq Scan on bids  (cost=0.00..25.10 rows=1510 width=4) (actual time=0.037..0.041 rows=26 loops=1)
+ Planning Time: 0.302 ms
+ Execution Time: 0.284 ms
+(10 rows)
+
+Explanation:
+This statement is using EXPLAIN ANALYZE to run the query and output all the same information as EXPLAIN, and in addition gives the actual time to run as well as the actual rows returned by each plan node.
+
+9.
+Statement:
+EXPLAIN ANALYZE SELECT MAX(bid_counts.count) FROM
+  (SELECT COUNT(bidder_id) FROM bids GROUP BY bidder_id) AS bid_counts;
+
+Output:
+                                                  QUERY PLAN                                                   
+---------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=37.15..37.16 rows=1 width=8) (actual time=0.428..0.428 rows=1 loops=1)
+   ->  HashAggregate  (cost=32.65..34.65 rows=200 width=12) (actual time=0.422..0.424 rows=6 loops=1)
+         Group Key: bids.bidder_id
+         ->  Seq Scan on bids  (cost=0.00..25.10 rows=1510 width=4) (actual time=0.011..0.016 rows=26 loops=1)
+ Planning Time: 0.158 ms
+ Execution Time: 0.969 ms
+(6 rows)
+
+Statement:
+EXPLAIN ANALYZE SELECT COUNT(bidder_id) AS max_bid FROM bids
+  GROUP BY bidder_id
+  ORDER BY max_bid DESC
+  LIMIT 1;
+
+Output:
+                                                     QUERY PLAN                                                      
+---------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=35.65..35.65 rows=1 width=12) (actual time=0.116..0.118 rows=1 loops=1)
+   ->  Sort  (cost=35.65..36.15 rows=200 width=12) (actual time=0.115..0.115 rows=1 loops=1)
+         Sort Key: (count(bidder_id)) DESC
+         Sort Method: top-N heapsort  Memory: 25kB
+         ->  HashAggregate  (cost=32.65..34.65 rows=200 width=12) (actual time=0.032..0.035 rows=6 loops=1)
+               Group Key: bidder_id
+               ->  Seq Scan on bids  (cost=0.00..25.10 rows=1510 width=4) (actual time=0.012..0.016 rows=26 loops=1)
+ Planning Time: 0.262 ms
+ Execution Time: 0.163 ms
+(9 rows)
+
+Our planning times are 0.158 ms and 0.262 ms, execution times are 0.969 ms and 0.163 ms, and total are 37.16 and 35.65 respectively. This shows that the 2nd query actually comes out to be quicker because the biggest difference is in the execution times, followed by total costs, making the subquery option slower and more costly.
+
+Further Exploration:
+Statement:
+SELECT name,
+(SELECT COUNT(item_id) FROM bids WHERE item_id = items.id)
+FROM items;
+
+Output:
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Seq Scan on items  (cost=0.00..25455.20 rows=880 width=40) (actual time=0.041..0.080 rows=6 loops=1)
+   SubPlan 1
+     ->  Aggregate  (cost=28.89..28.91 rows=1 width=8) (actual time=0.008..0.008 rows=1 loops=6)
+           ->  Seq Scan on bids  (cost=0.00..28.88 rows=8 width=4) (actual time=0.003..0.005 rows=4 loops=6)
+                 Filter: (item_id = items.id)
+                 Rows Removed by Filter: 22
+ Planning Time: 0.168 ms
+ Execution Time: 0.117 ms
+(8 rows)
+
+Statement:
+SELECT items.name, count(bids.item_id) FROM items
+LEFT OUTER JOIN bids ON items.id = bids.item_id
+GROUP BY items.id
+ORDER BY items.id;
+
+Output:
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=118.27..120.47 rows=880 width=44) (actual time=0.128..0.129 rows=6 loops=1)
+   Sort Key: items.id
+   Sort Method: quicksort  Memory: 25kB
+   ->  HashAggregate  (cost=66.44..75.24 rows=880 width=44) (actual time=0.105..0.111 rows=6 loops=1)
+         Group Key: items.id
+         ->  Hash Right Join  (cost=29.80..58.89 rows=1510 width=40) (actual time=0.070..0.089 rows=27 loops=1)
+               Hash Cond: (bids.item_id = items.id)
+               ->  Seq Scan on bids  (cost=0.00..25.10 rows=1510 width=4) (actual time=0.004..0.008 rows=26 loops=1)
+               ->  Hash  (cost=18.80..18.80 rows=880 width=36) (actual time=0.021..0.021 rows=6 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     ->  Seq Scan on items  (cost=0.00..18.80 rows=880 width=36) (actual time=0.013..0.015 rows=6 loops=1)
+ Planning Time: 0.175 ms
+ Execution Time: 0.234 ms
+(13 rows)
+
+
+Our scalar query planning, execution, and total costs are: 0.168, 0.117, and 25455.20. Our JOIN 
+statement numbers are: 0.175, 0.234, and 120.47. This shows that the scalar query is substantially worse due to extremely high total costs.
